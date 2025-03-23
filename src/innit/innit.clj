@@ -9,7 +9,7 @@
 
 (comment
   (->multiline (first
-               (str/split-lines "this-value = spans more \\
+                (str/split-lines "this-value = spans more \\
 than one \\
 line")))
   ;; => "this-value = spans more "
@@ -59,17 +59,19 @@ so it can't escape line endings")))
   ;; => ["[the type of data doesn't matter]" true]
   (->continuation "it=is just text")
   ;; => ["it=is just text" false]
-  (->continuation "this continuation is ;; false \\")
+  (->continuation "this continuation is ;; a fake \\")
+  ;; => ["this continuation is ;; a fake \\" false]
   )
 
 
 (defn- ->parameter
   [line]
-  (if-let [separator-idx (str/index-of line "=")]
-    (let [pname (subs line 0 separator-idx)
-          [pvalue continues?] (->continuation (subs line (inc separator-idx)))]
-      [(str/trim pname) pvalue continues?])
-    [(str/trim line) nil false]))
+  (let [[l continues?] (->continuation line)]
+    (if-let [separator-idx (str/index-of l "=")]
+      (let [pname (str/trim (subs l 0 separator-idx))
+            pvalue (subs l (inc separator-idx))]
+        [pname pvalue continues?])
+      [(str/trim l) nil continues?])))
 
 (comment
   (->parameter "a=b")
@@ -82,6 +84,8 @@ so it can't escape line endings")))
   ;; => ["[abcd]" nil false]
   (->parameter (-> "this=is a multiline\\\nparamater" str/split-lines first))
   ;; => ["this" "is a multiline" true]
+  (->parameter (-> "this is a multiline\\\nkey" str/split-lines first))
+  ;; => ["this is a multiline" nil true]
   )
 
 
@@ -106,7 +110,7 @@ so it can't escape line endings")))
   ;; => "  unwrap me but don't trim me  "
   (->value "\"I am # part of the content \" # ...and I am not")
   ;; => "I am # part of the content "
-)
+  )
 
 (defn- fold
   [state section parameter value]
@@ -121,23 +125,30 @@ so it can't escape line endings")))
   ([lines state section param value]
    (let [[line & lines*] lines]
      (if line
-       (if value
-         ;; Continuation
-         (let [[v continues?] (->continuation line)
-               value* (str value "\n" v)]
-           (if continues?
-             (recur lines* state section param value*)
-             (recur lines* (fold state section param value*) section nil nil)))
+       ;; Continuation...
+       (if param
+         (if value
+           ;; ...of value
+           (let [[v continues?] (->continuation line)
+                 value* (str value "\n" v)]
+             (if continues?
+               (recur lines* state section param value*)
+               (recur lines* (fold state section param value*) section nil nil)))
+           ;; ...of key
+           (let [[p value* continues?] (->parameter line)
+                 param* (str param "\n" p)]
+             (if continues?
+               (recur lines* state section param* value*)
+               (recur lines* (fold state section param* value*) section nil nil))))
+         ;; New...
          (if-let [section* (->section line)]
-           ;; New section
+           ;; ...section
            (recur lines* state section* nil nil)
-           ;; New parameter
+           ;; ...parameter
            (let [[param* value* continues?] (->parameter line)]
-             (recur lines*
-                    (fold state section param* value*)
-                    section
-                    (when continues? param*)
-                    (when continues? value*)))))
+             (if continues?
+               (recur lines* state section param* value*)
+               (recur lines* (fold state section param* value*) section nil nil)))))
        ;; End of file - fold leftovers
        (fold state section param value)))))
 
@@ -166,10 +177,13 @@ param2=22
 
 # different line comment
 
-bonusmultiline=this line\\
-continues ;; with trickery")
+multiline=this line\\
+continues ;; with trickery
+
+multiline\\
+keys=are supported!")
   (parse-ini-string my-ini)
-  (def ini-lines (str/split-lines my-ini))
-  (parse-ini-lines ini-lines)
+  (parse-ini-lines (str/split-lines my-ini))
+
 ;
-)
+  )
