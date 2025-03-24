@@ -2,23 +2,23 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [0.1.2] - 2025-03-24
+### Added
+- Tests
+    - Added test runner
+    - Added rich comment tests
+    - Integrated rich comment tests into the test runner
+- Changelog
+
+## [0.1.1] - 2025-03-22
 ### Changed
-- Add a new arity to `make-widget-async` to provide a different widget shape.
-
-## [0.1.1] - 2025-03-21
-### Changed
-- Documentation on how to make the widgets.
-
-### Removed
-- `make-widget-sync` - we're all async, all the time.
-
-### Fixed
-- Fixed widget maker to keep working when daylight savings switches over.
+- Fleshed out the basic implementation of the parser
+### Added
+- Parser now supports sections
+- Parser now supports multi-line parameters (keys and values alike)
 
 ## 0.1.0 - 2025-03-21
 ### Added
-- Files from the new template.
-- Widget maker public API - `make-widget-sync`.
-
-[Unreleased]: https://github.com/innit/innit/compare/0.1.1...HEAD
-[0.1.1]: https://github.com/innit/innit/compare/0.1.0...0.1.1
+- The project itself
+- First prototype of the .ini parser
