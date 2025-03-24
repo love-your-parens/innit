@@ -7,6 +7,7 @@
           first
           second))
 
+^:rct/test
 (comment
   (->multiline (first
                 (str/split-lines "this-value = spans more \\
@@ -30,6 +31,7 @@ so it can't escape line endings")))
         (subs l 1 ends-at)
         (subs l 1)))))
 
+^:rct/test
 (comment
   (->section "[my-section-name]")
   ;; => "my-section-name"
@@ -50,6 +52,7 @@ so it can't escape line endings")))
     [m true]
     [line false]))
 
+^:rct/test
 (comment
   (->continuation "this line does not continue")
   ;; => ["this line does not continue" false]
@@ -73,6 +76,7 @@ so it can't escape line endings")))
         [pname pvalue continues?])
       [(str/trim l) nil continues?])))
 
+^:rct/test
 (comment
   (->parameter "a=b")
   ;; => ["a" "b" false]
@@ -97,6 +101,7 @@ so it can't escape line endings")))
    ;; strip comments and whitespace
    (-> (re-seq #"^\s*([^;#]*[^;#\s]).*$" s) first second)))
 
+^:rct/test
 (comment
   (->value "abc")
   ;; => "abc"
