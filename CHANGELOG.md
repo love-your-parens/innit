@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased]
 ### Added
 - Doc strings
+- .ini encoding/writing functionality
 
 ## [0.1.2] - 2025-03-24
 ### Changed

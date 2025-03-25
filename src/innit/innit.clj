@@ -183,28 +183,155 @@ so it can't escape line endings")))
   [s]
   (-> s str/split-lines parse-ini-lines))
 
+
+(defn- encode-entity
+  "Encodes arbitrary data into ini format entities."
+  [entity]
+  (str/replace (cond
+                 (nil? entity) ""
+                 (false? entity) "0"
+                 (keyword? entity) (name entity)
+                 :else (-> entity str str/trim)) "\n" "\\\n"))
+
+^:rct/test
 (comment
-  (def my-ini "param1=1
-param2=2
+  (encode-entity "No funny business going on at all!")
+  ;; => "No funny business going on at all!"
+  (encode-entity false)
+  ;; => "0"
+  (encode-entity :a-keyword)
+  ;; => "a-keyword"
+  (encode-entity nil)
+  ;; => ""
+  (encode-entity "this entity
+spans
+many lines")
+  ;; => "this entity\\\nspans\\\nmany lines"
+  (encode-entity "no=policing so=take care")
+  ;; => "no=policing so=take care"
+  )
 
-[section1]
-param1=11
-param2=12
 
-;; line comment
-[section2]
-param1= \"21\" ;; inline comment
-param2=22
+(defn- encode-section
+  "Encodes an ini section."
+  [section-name]
+  (format "[%s]" (encode-entity section-name)))
 
-# different line comment
+^:rct/test
+(comment
+  (encode-section "section 1")
+  ;; => "[section 1]"
+  (encode-section "no [policing]")
+  ;; => "[no [policing]]"
+  (encode-section "multiline\nis supported")
+  ;; => "[multiline\\\nis supported]"
+  )
 
-multiline=this line\\
-continues ;; with trickery
 
-multiline\\
-keys=are supported!")
-  (parse-ini-string my-ini)
-  (parse-ini-lines (str/split-lines my-ini))
 
-;
+(defn- encode-1
+  "Takes ini-encodable input (a hashmap),
+  uses it to produce a single ini-entity (section, parameter),
+  returns a vector of: [encoded entity, updated input, currently visited section],
+  or `nil` upon exhausting all valid input."
+  ([input]
+   (encode-1 input nil))
+  ([input section]
+   (if section
+     (if-let [section-seq (seq (get input section))]
+       ;; Section not empty - extract and serialize the next pair
+       (let [[k v] (first section-seq)]
+         [(if (nil? k) "" (format "%s = %s"
+                                  (encode-entity k)
+                                  (encode-entity v)))
+          (update-in input [section] #(dissoc % k))
+          section])
+       ;; Section exhausted - drop it and continue
+       ["" (dissoc input section) nil])
+     ;; Nominate the next section
+     (if (get input "") ; always start from the outer section
+       (recur input "")
+       (when-let [[k] (first input)]
+         [(encode-section k) input k])))))
+
+^:rct/test
+(comment
+  (let [ini-map {"" {1 1}
+                 :some-section {11 1
+                                12 2}}]
+    (let [[o1 i1 s1] (encode-1 ini-map)
+          [o2 i2 s2] (encode-1 i1 s1)
+          [o3 i3 s3] (encode-1 i2 s2)]
+      [[o1 o2 o3]
+       [i1 i2 i3]
+       [s1 s2 s3]]))
+  ;; => [["1 = 1" "" "[some-section]"]
+  ;;     [{"" {}, :some-section {11 1, 12 2}}
+  ;;      {:some-section {11 1, 12 2}}
+  ;;      {:some-section {11 1, 12 2}}]
+  ;;     ["" nil :some-section]]
+  )
+
+
+(defn- iterable-encode-1
+  "Composes ini-entity encoding into an iterable process.
+  The encoded entity is returned in the third position."
+  [[input section & _]]
+  (when-let [[output* input* section*] (encode-1 input section)]
+    [input* section* output*]))
+
+^:rct/test
+(comment
+  (let [ini-map {"" {1 1}
+                 :some-section {11 1
+                                12 2}}
+        ini-iterator (iterate iterable-encode-1 [ini-map])]
+    (->> ini-iterator (drop 1) (take 3)))
+  ;; => ([{"" {}, :some-section {11 1, 12 2}} "" "1 = 1"]
+  ;;     [{:some-section {11 1, 12 2}} nil ""]
+  ;;     [{:some-section {11 1, 12 2}} :some-section "[some-section]"])
+  )
+
+
+(defn encode-as-lazy-seq
+  [hash-map]
+  (->> (iterate iterable-encode-1 [hash-map])
+       (drop 1)
+       (map (fn [[_ _ s]] s))
+       (take-while identity)))
+
+
+(defn encode-to-string
+  "Encodes data as ini and returns it as a string."
+  [hash-map]
+  (str/join "\n" (encode-as-lazy-seq hash-map)))
+
+^:rct/test
+(comment
+  (encode-to-string {"" {1 1}
+                     :some-section {11 1}})
+  ;; => "1 = 1\n\n[some-section]\n11 = 1\n"
+  ;
+  )
+
+
+(defn encode-to-file
+  "Encodes data as ini and writes it directly to a file.
+  Data should be an ini-encodable hashmap.
+  File can be anything that converts to `java.io.File`.
+  Throws on IO errors."
+  [hash-map file]
+  (let [f (io/file file)
+        w (io/writer f)
+        ini (encode-as-lazy-seq hash-map)]
+    (try
+      (doseq [s ini]
+        (.append w s)
+        (.append w "\n"))
+      (finally (.close w)))))
+
+(comment
+  (encode-to-file {"" {:a 'a :b 'b}}
+                  "/tmp/my-ini-file.ini")
+  ;
   )
