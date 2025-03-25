@@ -2,7 +2,11 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]))
 
-(defn- ->multiline [line]
+
+(defn- ->multiline
+  "Parses line as multiline.
+  Drops the escape sequence."
+  [line]
   (some-> (re-seq #"^([^;#]*)\\$" line)
           first
           second))
@@ -23,6 +27,7 @@ so it can't escape line endings")))
 
 
 (defn- ->section
+  "Parses line as a section when valid."
   [line]
   (let [l (str/triml line)]
     (when (str/starts-with? l "[")
@@ -47,6 +52,8 @@ so it can't escape line endings")))
 
 
 (defn- ->continuation
+  "Evaluates line as a potential continuation.
+  Returns [evaluated-line continues?]."
   [line]
   (if-let [m (->multiline line)]
     [m true]
@@ -68,6 +75,8 @@ so it can't escape line endings")))
 
 
 (defn- ->parameter
+  "Parses line as a parameter, i.e. a key=value pair.
+  Returns [key value continues?]"
   [line]
   (let [[l continues?] (->continuation line)]
     (if-let [separator-idx (str/index-of l "=")]
@@ -94,6 +103,8 @@ so it can't escape line endings")))
 
 
 (defn- ->value
+  "Parses a string as a configuration value.
+  Unquotes, prunes comments, trims."
   [s]
   (or
    ;; unquote
@@ -118,6 +129,7 @@ so it can't escape line endings")))
   )
 
 (defn- fold
+  "Folds pending datapoint into the state container."
   [state section parameter value]
   (if (and parameter value)
     (assoc-in state [section parameter] (->value value))
@@ -125,6 +137,7 @@ so it can't escape line endings")))
 
 
 (defn parse-ini-lines
+  "Parses a sequence of .ini string lines into a well formed hash-map."
   ([lines]
    (parse-ini-lines lines {} "" nil nil))
   ([lines state section param value]
@@ -159,11 +172,14 @@ so it can't escape line endings")))
 
 
 (defn parse-ini-file
+  "Parses an .ini file into a well formed hash-map."
   [file-path]
   (-> file-path io/reader line-seq parse-ini-lines))
 
 
+;; FIXME add a unit test
 (defn parse-ini-string
+  "Parses an .ini string into a well formed hash-map."
   [s]
   (-> s str/split-lines parse-ini-lines))
 
