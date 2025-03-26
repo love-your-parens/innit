@@ -5,7 +5,7 @@ INI configuration format decoding & encoding library.
 *Innit* attempts to be reasonably thorough, yet with no formal standards to follow - much is based on assumptions and real-life use-cases. It currently supports:
 
 - sections
-- comments
+- comments and inline comments
 - quoting
 - multi-line keys & values
 
@@ -18,7 +18,6 @@ INI configuration format decoding & encoding library.
 - Multiple nesting is not supported
 - Decoded values are not implicitly type-cast, e.g. `false` will produce a string `"false"` - not a boolean 
 
-
 ## Installation
 
 ### With Clojure CLI
@@ -26,7 +25,7 @@ INI configuration format decoding & encoding library.
 Add *Innit* to your `deps.edn` under `:deps`, for example:
 
 ``` clojure
-{:deps {io.github.love-your-parens/innit {:git/tag "v0.2.0" :git/sha "15e9fe0"}}}
+{:deps {io.github.love-your-parens/innit {:git/tag "..." :git/sha "..."}}}
 ```
 
 ### With Leiningen
@@ -75,6 +74,7 @@ another key = and another value")
 ## Roadmap
 
 - Automatic output quoting
+- Clojars repository 
 - ClojureScript support
 
 ## License
