@@ -2,7 +2,7 @@
 
 INI configuration format decoding & encoding library.
 
-*Innit* attempts to be reasonably thorough. With no formal standards to follow though, much is based on assumptions and real-life use-cases. It currently supports:
+*Innit* attempts to be reasonably thorough, yet with no formal standards to follow - much is based on assumptions and real-life use-cases. It currently supports:
 
 - sections
 - comments
