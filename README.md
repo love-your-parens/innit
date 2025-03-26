@@ -76,6 +76,7 @@ another key = and another value")
 - Automatic output quoting
 - Clojars repository 
 - ClojureScript support
+- Additional escape sequences
 
 ## License
 
