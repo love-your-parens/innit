@@ -1,3 +1,3 @@
-# Introduction to innit/innit
+# Introduction to Innit
 
 TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)

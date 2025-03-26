@@ -1,38 +1,81 @@
-# innit/innit
+# Innit
 
-FIXME: my new library.
+INI configuration format decoding & encoding library.
+
+*Innit* attempts to be reasonably thorough. With no formal standards to follow though, much is based on assumptions and real-life use-cases. It currently supports:
+
+- sections
+- comments
+- quoting
+- multi-line keys & values
+
+> This software is still in roughly alpha stage. Most of the functionality is complete, but not properly battle-tested.
+
+## Caveats
+
+- Section names and key names are all case-sensitive
+- Comments are not preserved
+- Multiple nesting is not supported
+- Decoded values are not implicitly type-cast, e.g. `false` will produce a string `"false"` - not a boolean 
+
+
+## Installation
+
+### With Clojure CLI
+
+Add *Innit* to your `deps.edn` under `:deps`, for example:
+
+``` clojure
+{:deps {io.github.love-your-parens/innit {:git/tag "v0.2.0" :git/sha "15e9fe0"}}}
+```
+
+### With Leiningen
+
+*Innit* is not yet on Clojars, so the only way to resolve it via *Leiningen* is to use an extension that enables git dependencies.
 
 ## Usage
 
-FIXME: write usage documentation!
+Examples assume that you pulled Innit into your namespace like so:
 
-Invoke a library API function from the command-line:
+``` clojure
+(require '[innit/innit :as ini])
+```
 
-    $ clojure -X innit.innit/foo :a 1 :b '"two"'
-    {:a 1, :b "two"} "Hello, World!"
+### Decoding
 
-Run the project's tests (they'll fail until you edit them):
+``` clojure
+  ;;; Here's how we decode strings:
+  (ini/parse-ini-string "some_key = some value or other
+[a section]
+another key = and another value")
+  ;; => {"" {"some_key" "some value or other"},
+  ;;     "a section" {"another key" "and another value"}}
+  
+  ;;; Much the same for files:
+  (ini/parse-ini-file "/path/to/file.ini")
+  ;; Note that the argument here can be anything that java.io.File can grok.
+```
 
-    $ clojure -T:build test
+### Encoding
 
-Run the project's CI pipeline and build a JAR (this will fail until you edit the tests to pass):
+*Innit* can only encode hash-maps. Every key designates a section. The outermost, top section should be indexed under `""` (empty string). Multiple nesting is not supported.
 
-    $ clojure -T:build ci
+``` clojure
+  ;;; Here's how we encode to string:
+  (ini/encode-to-string {"" {1 1}
+                         :some-section {11 1}})
+  ;; => "1 = 1\n\n[some-section]\n11 = 1\n"
 
-This will produce an updated `pom.xml` file with synchronized dependencies inside the `META-INF`
-directory inside `target/classes` and the JAR in `target`. You can update the version (and SCM tag)
-information in generated `pom.xml` by updating `build.clj`.
+  ;;; And for files, we just provide a valid path:
+  (encode-to-file {"" {:a 'a :b 'b}}
+                  "/tmp/my-ini-file.ini")
+  ;; Keep in mind that IO errors will throw!
+```
 
-Install it locally (requires the `ci` task be run first):
+## Roadmap
 
-    $ clojure -T:build install
-
-Deploy it to Clojars -- needs `CLOJARS_USERNAME` and `CLOJARS_PASSWORD` environment
-variables (requires the `ci` task be run first):
-
-    $ clojure -T:build deploy
-
-Your library will be deployed to net.clojars.innit/innit on clojars.org by default.
+- Automatic output quoting
+- ClojureScript support
 
 ## License
 
