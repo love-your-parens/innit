@@ -177,11 +177,39 @@ so it can't escape line endings")))
   (-> file-path io/reader line-seq parse-ini-lines))
 
 
-;; FIXME add a unit test
 (defn parse-ini-string
   "Parses an .ini string into a well formed hash-map."
   [s]
   (-> s str/split-lines parse-ini-lines))
+
+^:rct/test
+(comment
+  (parse-ini-string ";;;; INI string test
+test.name = \" - INI string test - \"
+# line comment
+## --------
+test.empty_values = ; void value, inline comment
+test.multiple_line_values = this must\\
+continue
+
+[section-1]
+nested-key   =    with a lot of unnecessary white space
+test.name = should not produce a duplicate
+test.NAME = should not produce a duplicate either...
+test.NAME = ... but should get overwritten
+
+
+[section-2]
+# Empty sections are omitted")
+  ;; => {""
+  ;;     {"test.name" " - INI string test - ",
+  ;;      "test.empty_values" nil,
+  ;;      "test.multiple_line_values" "this must\ncontinue"},
+  ;;     "section-1"
+  ;;     {"nested-key" "with a lot of unnecessary white space",
+  ;;      "test.name" "should not produce a duplicate",
+  ;;      "test.NAME" "... but should get overwritten"}}
+  )
 
 
 (defn- encode-entity
@@ -228,7 +256,6 @@ many lines")
   )
 
 
-
 (defn- encode-1
   "Takes ini-encodable input (a hashmap),
   uses it to produce a single ini-entity (section, parameter),
@@ -258,13 +285,13 @@ many lines")
 (comment
   (let [ini-map {"" {1 1}
                  :some-section {11 1
-                                12 2}}]
-    (let [[o1 i1 s1] (encode-1 ini-map)
-          [o2 i2 s2] (encode-1 i1 s1)
-          [o3 i3 s3] (encode-1 i2 s2)]
-      [[o1 o2 o3]
-       [i1 i2 i3]
-       [s1 s2 s3]]))
+                                12 2}}
+        [o1 i1 s1] (encode-1 ini-map)
+        [o2 i2 s2] (encode-1 i1 s1)
+        [o3 i3 s3] (encode-1 i2 s2)]
+    [[o1 o2 o3]
+     [i1 i2 i3]
+     [s1 s2 s3]])
   ;; => [["1 = 1" "" "[some-section]"]
   ;;     [{"" {}, :some-section {11 1, 12 2}}
   ;;      {:some-section {11 1, 12 2}}
