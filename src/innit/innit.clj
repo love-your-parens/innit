@@ -2,6 +2,10 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]))
 
+;;; FIXME
+;; Quoting is quirky and should be considered experimental at the moment.
+;; It won't correctly protect any wildcards, i.e.: `=` `#` `;`.
+;; It's only effective at preserving whitespace.
 
 (defn- ->multiline
   "Parses line as multiline.
@@ -74,6 +78,72 @@ so it can't escape line endings")))
   )
 
 
+(defn- all-indexes-of
+  "Similar to clojure.string/index-of, except it returns a lazy seq of all indexes."
+  ([s search]
+   (all-indexes-of s search nil))
+  ([s search from-index]
+   (let [match (if from-index
+                 (str/index-of s search from-index)
+                 (str/index-of s search))]
+     (when match
+       (lazy-seq (cons match (all-indexes-of s search (inc match))))))))
+
+^:rct/test
+(comment
+  (all-indexes-of "alibaba" "a")
+  ;; => (0 4 6)
+  (all-indexes-of "alibaba" "a" 3)
+  ;; => (4 6)
+  (all-indexes-of "alibaba" "a" 7)
+  ;; => nil
+  )
+
+
+(defn- escaped?
+  "Checks if a character at the specified index in the string is escaped."
+  [string char-index]
+  (and (pos? char-index)
+       (< char-index (count string))
+       (= \\ (nth string (dec char-index)))))
+
+^:rct/test
+(comment
+  (escaped? "0123" 2)
+  ;; => false
+  (escaped? "012\\4" 4)
+  ;; => true
+  (escaped? "" -1)
+  ;; => false
+  (escaped? "" 100)
+  ;; => false
+  )
+
+
+(defn- prune-comments
+  "Prunes all unescaped comments from a single line."
+  [line]
+  (let [comment-idxs (filter (complement (partial escaped? line))
+                             (concat (all-indexes-of line "#")
+                                     (all-indexes-of line ";")))]
+    (if-let [comment-idx (when (seq comment-idxs) (reduce min comment-idxs))]
+      (subs line 0 comment-idx)
+      line)))
+
+(comment
+  (prune-comments "No comments")
+  ;; => "No comments"
+  (prune-comments "This line should end # right here")
+  ;; => "This line should end "
+  (prune-comments "; this line is effectively empty")
+  ;; => ""
+  (prune-comments "this comment \\; escapes")
+  ;; => "this comment \\; escapes"
+  (prune-comments "this one \\;; only pretends to")
+  ;; => "this one \\;"
+  )
+
+
 (defn- ->parameter
   "Parses line as a parameter, i.e. a key=value pair.
   Returns [key value continues?]"
@@ -110,7 +180,7 @@ so it can't escape line endings")))
    ;; unquote
    (-> (re-seq #"^\s*\"(.*)\".*$" s) first second)
    ;; strip comments and whitespace
-   (-> (re-seq #"^\s*([^;#]*[^;#\s]).*$" s) first second)))
+   (str/trim (prune-comments s))))
 
 ^:rct/test
 (comment
@@ -128,6 +198,7 @@ so it can't escape line endings")))
   ;; => "I am # part of the content "
   )
 
+
 (defn- fold
   "Folds pending datapoint into the state container."
   [state section parameter value]
@@ -141,8 +212,8 @@ so it can't escape line endings")))
   ([lines]
    (parse-ini-lines lines {} "" nil nil))
   ([lines state section param value]
-   (let [[line & lines*] lines]
-     (if line
+   (let [[l & lines*] lines]
+     (if-let [line (when l (prune-comments l))]
        ;; Continuation...
        (if param
          (if value
@@ -192,18 +263,20 @@ test.empty_values = ; void value, inline comment
 test.multiple_line_values = this must\\
 continue
 
+; this-parameter = is commented out and should not be parsed
+# this = is commented out too
+
 [section-1]
 nested-key   =    with a lot of unnecessary white space
 test.name = should not produce a duplicate
 test.NAME = should not produce a duplicate either...
 test.NAME = ... but should get overwritten
 
-
 [section-2]
 # Empty sections are omitted")
   ;; => {""
   ;;     {"test.name" " - INI string test - ",
-  ;;      "test.empty_values" nil,
+  ;;      "test.empty_values" "",
   ;;      "test.multiple_line_values" "this must\ncontinue"},
   ;;     "section-1"
   ;;     {"nested-key" "with a lot of unnecessary white space",
