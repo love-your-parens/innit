@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-04-02
+### Fixed
+- Commented-out parameters will now correctly be omitted
+
 ## [0.2.1] - 2025-03-26
 ### Added
 - Docs
