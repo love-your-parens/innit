@@ -6,7 +6,7 @@ INI configuration format decoding & encoding library.
 
 - sections
 - comments and inline comments
-- quoting
+- quoting to preserve whitespace
 - multi-line keys & values
 
 > This software is still in roughly alpha stage. Most of the functionality is complete, but not properly battle-tested.
@@ -16,7 +16,9 @@ INI configuration format decoding & encoding library.
 - Section names and key names are all case-sensitive
 - Comments are not preserved
 - Multiple nesting is not supported
-- Decoded values are not implicitly type-cast, e.g. `false` will produce a string `"false"` - not a boolean 
+- Decoded values are not implicitly type-cast, e.g. `false` will produce a string `"false"` - not a boolean
+
+*Innit* is not an advanced parser. It operates on a simplified, pattern-based model. It's quite likely to trip over gotchas.
 
 ## Installation
 
@@ -70,6 +72,24 @@ another key = and another value")
                   "/tmp/my-ini-file.ini")
   ;; Keep in mind that IO errors will throw!
 ```
+
+### Escaping
+
+*Innit* only allows you to escape the comment sign (`;` or `#`), and the newline sign (which produces a multi-line). Both are accomplished by using the `\` (backslash) character. For example:
+
+```
+this line # cuts off
+this one \# does not
+```
+
+And similarly:
+
+```
+this line\
+wraps around
+```
+
+The escape sign itself cannot be escaped, so phrases like `\\#` will not be interpreted how you might expect.
 
 ## Roadmap
 

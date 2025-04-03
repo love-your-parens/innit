@@ -4,7 +4,7 @@
 
 ;;; FIXME
 ;; Quoting is quirky and should be considered experimental at the moment.
-;; It won't correctly protect any wildcards, i.e.: `=` `#` `;`.
+;; It won't correctly protect any tokens, i.e.: `=` `#` `;`.
 ;; It's only effective at preserving whitespace.
 
 (defn- ->multiline
@@ -101,7 +101,9 @@ so it can't escape line endings")))
 
 
 (defn- escaped?
-  "Checks if a character at the specified index in the string is escaped."
+  "Checks if a character at the specified index in the string is escaped.
+  Very simplistic, will not correctly interpret complex scenarios with
+  subsequent escapes, for example: x in `\\\\x` will be seen as escaped."
   [string char-index]
   (and (pos? char-index)
        (< char-index (count string))
