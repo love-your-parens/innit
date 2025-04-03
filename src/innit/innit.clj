@@ -2,10 +2,24 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]))
 
-;;; FIXME
+;; FIXME
 ;; Quoting is quirky and should be considered experimental at the moment.
 ;; It won't correctly protect any tokens, i.e.: `=` `#` `;`.
 ;; It's only effective at preserving whitespace.
+;;
+;; FIXME
+;; This won't continue:
+;; abcd \# efgh \
+;;
+;; FIXME
+;; This retains the backslash:
+;; escaped \# comment
+;;
+;; TODO
+;; The algorithm needs to be cleaned up wrt escape signs. Perhaps have one
+;; `unescape` fn applied to individual strings at the tail of the process.
+;; Similarly, subroutines like `->value` should perhaps be ignorant to comments,
+;; relying instead on pre-pruning.
 
 (defn- ->multiline
   "Parses line as multiline.
