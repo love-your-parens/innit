@@ -5,7 +5,8 @@ INI configuration format decoding & encoding library.
 *Innit* attempts to be reasonably thorough, yet with no formal standards to follow - much is based on assumptions and real-life use-cases. It currently supports:
 
 - sections
-- comments and inline comments
+- comments, inline comments
+- escaped comment-signs
 - quoting to preserve whitespace
 - multi-line keys & values
 
@@ -18,7 +19,7 @@ INI configuration format decoding & encoding library.
 - Multiple nesting is not supported
 - Decoded values are not implicitly type-cast, e.g. `false` will produce a string `"false"` - not a boolean
 
-*Innit* is not an advanced parser. It operates on a simplified, pattern-based model. It's quite likely to trip over gotchas.
+*Innit* is not an advanced parser. It operates on a simplified, pattern-based model. It may trip over gotchas.
 
 ## Installation
 
@@ -96,7 +97,6 @@ The escape sign itself cannot be escaped, so phrases like `\\#` will not be inte
 - Automatic output quoting
 - Clojars repository 
 - ClojureScript support
-- Additional escape sequences
 
 ## License
 
