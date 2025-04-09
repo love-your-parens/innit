@@ -21,6 +21,7 @@
 ;; Similarly, subroutines like `->value` should perhaps be ignorant to comments,
 ;; relying instead on pre-pruning.
 
+
 (defn- ->multiline
   "Parses line as multiline.
   Drops the escape sequence."
@@ -114,25 +115,73 @@ so it can't escape line endings")))
   )
 
 
+(def escapable-characters #{\; \#})
+
 (defn- escaped?
   "Checks if a character at the specified index in the string is escaped.
-  Very simplistic, will not correctly interpret complex scenarios with
-  subsequent escapes, for example: x in `\\\\x` will be seen as escaped."
+  Very simplistic, would not correctly interpret complex scenarios with
+  subsequent escapes, for example: x in `\\\\x` will be seen as escaped.
+  This is of no consequence right now since backslash is not escapable."
   [string char-index]
   (and (pos? char-index)
        (< char-index (count string))
-       (= \\ (nth string (dec char-index)))))
+       (= \\ (nth string (dec char-index)))
+       (contains? escapable-characters (nth string char-index))))
 
 ^:rct/test
 (comment
   (escaped? "0123" 2)
   ;; => false
-  (escaped? "012\\4" 4)
+  (escaped? "012\\#" 4)
   ;; => true
+  (escaped? "012\\;" 4)
+  ;; => true
+  (escaped? "012\\\\" 4)
+  ;; => false
+  (escaped? "012\\4" 4)
+  ;; => false
   (escaped? "" -1)
   ;; => false
   (escaped? "" 100)
   ;; => false
+  )
+
+
+(defn unescape
+  ([s]
+   (unescape "" (seq s)))
+  ([head tail]
+   (if (seq tail)
+     (let [[a b] (take 2 tail)]
+       (if (escaped? (str a b) 1)
+         (recur (str head b) (drop 2 tail))
+         (recur (str head a) (drop 1 tail))))
+     head)))
+
+^:rct/test
+(comment
+  (unescape "abcd \\# efgh \\ ijkl \\; mnop ;rst #uw \\")
+  ;; => "abcd # efgh \\ ijkl ; mnop ;rst #uw \\"
+  )
+
+
+
+(defn- strip-quotes
+  [s]
+  (or (some->> s (re-seq #"^\"(.*)\"$") first second) s))
+
+^:rct/test
+(comment
+  (strip-quotes "\"   quoted text preserves whitespace   \"")
+  ;; => "   quoted text preserves whitespace   "
+  (strip-quotes "   \"won't work with untrimmed strings\" ")
+  ;; => "   \"won't work with untrimmed strings\" "
+  (strip-quotes "  unqoted string should stay untouched")
+  ;; => "  unqoted string should stay untouched"
+  (strip-quotes " unbalanced \" quotations do nothing")
+  ;; => " unbalanced \" quotations do nothing"
+  (strip-quotes "\"only strips the \"outermost\" quotes\"")
+  ;; => "only strips the \"outermost\" quotes"
   )
 
 
