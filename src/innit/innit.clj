@@ -24,9 +24,10 @@
 
 (defn- ->multiline
   "Parses line as multiline.
-  Drops the escape sequence."
+  Drops the escape sequence.
+  Doesn't recognise comments or any special entities."
   [line]
-  (some-> (re-seq #"^([^;#]*)\\$" line)
+  (some-> (re-seq #"^(.*)\\$" line)
           first
           second))
 
@@ -38,8 +39,8 @@ than one \\
 line")))
   ;; => "this-value = spans more "
   (->multiline (first (str/split-lines "this-value = has an ; inline comment \\
-so it can't escape line endings")))
-  ;; => nil
+but ->multiline is blind to it")))
+  ;; => "this-value = has an ; inline comment "
   (->multiline "\\")
   ;; => ""
   )
@@ -86,10 +87,8 @@ so it can't escape line endings")))
   ;; => ["this line does continue " true]
   (->continuation "[the type of data doesn't matter]\\")
   ;; => ["[the type of data doesn't matter]" true]
-  (->continuation "it=is just text")
-  ;; => ["it=is just text" false]
-  (->continuation "this continuation is ;; a fake \\")
-  ;; => ["this continuation is ;; a fake \\" false]
+  (->continuation "it's all = just # text\\")
+  ;; => ["it's all = just # text" true]
   )
 
 
@@ -147,7 +146,7 @@ so it can't escape line endings")))
   )
 
 
-(defn unescape
+(defn- unescape
   ([s]
    (unescape "" (seq s)))
   ([head tail]
@@ -168,7 +167,7 @@ so it can't escape line endings")))
 
 (defn- strip-quotes
   [s]
-  (or (some->> s (re-seq #"^\"(.*)\"$") first second) s))
+  (or (some->> s (re-seq #"(?s)^\"(.*)\"$") first second) s))
 
 ^:rct/test
 (comment
@@ -182,6 +181,10 @@ so it can't escape line endings")))
   ;; => " unbalanced \" quotations do nothing"
   (strip-quotes "\"only strips the \"outermost\" quotes\"")
   ;; => "only strips the \"outermost\" quotes"
+  (strip-quotes "\" needs to support
+  multiple
+lines\"")
+  ;; => " needs to support\n  multiple\nlines"
   )
 
 
@@ -211,21 +214,22 @@ so it can't escape line endings")))
 
 (defn- ->parameter
   "Parses line as a parameter, i.e. a key=value pair.
-  Returns [key value continues?]"
+  Returns [key value continues?]
+  Key and value are returned raw."
   [line]
   (let [[l continues?] (->continuation line)]
     (if-let [separator-idx (str/index-of l "=")]
-      (let [pname (str/trim (subs l 0 separator-idx))
+      (let [pname (subs l 0 separator-idx)
             pvalue (subs l (inc separator-idx))]
         [pname pvalue continues?])
-      [(str/trim l) nil continues?])))
+      [l nil continues?])))
 
 ^:rct/test
 (comment
   (->parameter "a=b")
   ;; => ["a" "b" false]
-  (->parameter " a   =  the  value is quite    raw     ")
-  ;; => ["a" "  the  value is quite    raw     " false]
+  (->parameter "  parameter name   =  and  value stay    raw     ")
+  ;; => ["  parameter name   " "  and  value stay    raw     " false]
   (->parameter "a")
   ;; => ["a" nil false]
   (->parameter "[abcd]")
@@ -238,38 +242,58 @@ so it can't escape line endings")))
 
 
 (defn- ->value
-  "Parses a string as a configuration value.
-  Unquotes, prunes comments, trims."
+  "Parses a string as a configuration value."
   [s]
-  (or
-   ;; unquote
-   (-> (re-seq #"^\s*\"(.*)\".*$" s) first second)
-   ;; strip comments and whitespace
-   (str/trim (prune-comments s))))
+  (when s (-> s
+              prune-comments
+              str/trim
+              strip-quotes
+              unescape)))
 
 ^:rct/test
 (comment
   (->value "abc")
   ;; => "abc"
-  (->value "  trim me please     ")
+  (->value "  trim me please   # including comments  ")
   ;; => "trim me please"
-  (->value "ignore ;; this comment")
+  (->value "ignore ; this comment")
   ;; => "ignore"
   (->value "ignore # these ;; too")
   ;; => "ignore"
-  (->value "\"  unwrap me but don't trim me  \"")
-  ;; => "  unwrap me but don't trim me  "
-  (->value "\"I am # part of the content \" # ...and I am not")
-  ;; => "I am # part of the content "
-  )
+  (->value " \"  unwrap me, trim outside only  \" ")
+  ;; => "  unwrap me, trim outside only  "
+  (->value "\"this is \\# content \" # this is not")
+  ;; => "this is # content "
+  (->value nil)
+  ;; => nil
+)
+
+
+(defn- ->name
+  "Parses a string as a parameter name.
+  In effect: just a subset of `->value`."
+  [s]
+  (when s (-> s
+              prune-comments
+              str/trim
+              strip-quotes
+              unescape)))
+
+^:rct/test
+(comment
+  (->name nil)
+  ;; => nil
+)
 
 
 (defn- fold
   "Folds pending datapoint into the state container."
-  [state section parameter value]
-  (if (and parameter value)
-    (assoc-in state [section parameter] (->value value))
-    state))
+  [state section param-name param-value]
+  (let [name (->name param-name)
+        value (->value param-value)]
+    (if (and name value)
+      (assoc-in state [section name] value)
+      state)))
 
 
 (defn parse-ini-lines
@@ -338,7 +362,16 @@ test.NAME = should not produce a duplicate either...
 test.NAME = ... but should get overwritten
 
 [section-2]
-# Empty sections are omitted")
+# Empty sections are omitted
+
+[section-3]
+multi\\
+line_keys = with\\
+   multiline values! # VERY non-standard feature
+comment signs = can \\# be escaped\\
+and don't disrupt multilines
+try = \"quoting over\\
+multiple lines  \"")
   ;; => {""
   ;;     {"test.name" " - INI string test - ",
   ;;      "test.empty_values" "",
@@ -346,7 +379,11 @@ test.NAME = ... but should get overwritten
   ;;     "section-1"
   ;;     {"nested-key" "with a lot of unnecessary white space",
   ;;      "test.name" "should not produce a duplicate",
-  ;;      "test.NAME" "... but should get overwritten"}}
+  ;;      "test.NAME" "... but should get overwritten"},
+  ;;     "section-3"
+  ;;     {"multi\nline_keys" "with\n   multiline values!",
+  ;;      "comment signs" "can # be escaped\nand don't disrupt multilines",
+  ;;      "try" "quoting over\nmultiple lines  "}}
   )
 
 
