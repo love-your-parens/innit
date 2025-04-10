@@ -95,7 +95,15 @@ but ->multiline is blind to it")))
   )
 
 
+(def escape-sign \\)
 (def escapable-characters #{\; \#})
+
+
+(defn- escapable?
+  "Checks whether a character is escapable."
+  [char]
+  (contains? escapable-characters char))
+
 
 (defn- escaped?
   "Checks if a character at the specified index in the string is escaped.
@@ -105,8 +113,8 @@ but ->multiline is blind to it")))
   [string char-index]
   (and (pos? char-index)
        (< char-index (count string))
-       (= \\ (nth string (dec char-index)))
-       (contains? escapable-characters (nth string char-index))))
+       (= escape-sign (nth string (dec char-index)))
+       (escapable? (nth string char-index))))
 
 ^:rct/test
 (comment
@@ -127,7 +135,12 @@ but ->multiline is blind to it")))
   )
 
 
-(defn- unescape
+(defn unescape
+  "Unescapes all escapable characters in the provided string.
+  Use this on a decoded ini-value to get rid of escape signs,
+  but be aware that you will need to re-escape it before
+  you can encode it again or your output might get mangled.
+  E.g.: text \\# text -> text # text -> text"
   ([s]
    (unescape "" (seq s)))
   ([head tail]
@@ -144,6 +157,33 @@ but ->multiline is blind to it")))
   ;; => "abcd # efgh \\ ijkl ; mnop ;rst #uw \\"
   )
 
+(defn escape
+  "Escapes all escapable characters in a string,
+  omitting ones which had already been escaped."
+  ([s]
+   (escape [] (seq s)))
+  ([head tail]
+   (let [a (peek head)
+         b (first tail)]
+     (if b
+       (recur (if (and (escapable? b)
+                       (not (escaped? (str a b) 1)))
+                (conj head escape-sign b)
+                (conj head b))
+              (drop 1 tail))
+       (reduce str head)))))
+
+^:rct/test
+(comment
+  (escape "please escape # my comments")
+  ;; => "please escape \\# my comments"
+  (escape "; these too")
+  ;; => "\\; these too"
+  (escape "or # even both ;")
+  ;; => "or \\# even both \\;"
+  (escape "#don't \\; overdo \\# it")
+  ;; => "\\#don't \\; overdo \\# it"
+  )
 
 
 (defn- strip-quotes
