@@ -109,6 +109,26 @@ wraps around
 
 The escape sign itself cannot be escaped, so phrases like `\\#` will not be interpreted how you might expect.
 
+> Note:
+> Neither decoding, nor encoding an INI string will alter escape signs!
+
+To remove escape signs from a string, simply use `unescape`. Conversely, use `escape` to protect all eligible characters.
+
+``` clojure
+(ini/escape "This is not # meant to be a comment")
+;; => "This is not \\# meant to be a comment"
+
+(ini/unescape "This is not \\# meant to be a comment")
+;; => "This is not # meant to be a comment"
+```
+
+`escape` is idempotent:
+
+``` clojure
+(ini/escape "This is not \\# meant to be a comment")
+;; => "This is not \\# meant to be a comment"
+```
+
 ## Roadmap
 
 - Automatic output quoting
