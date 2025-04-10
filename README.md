@@ -12,6 +12,23 @@ INI configuration format decoding & encoding library.
 
 > This software is still in roughly alpha stage. Most of the functionality is complete, but not properly battle-tested.
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [Innit](#innit)
+  - [Caveats](#caveats)
+  - [Installation](#installation)
+    - [With Clojure CLI](#with-clojure-cli)
+    - [With Leiningen](#with-leiningen)
+  - [Usage](#usage)
+    - [Decoding](#decoding)
+    - [Encoding](#encoding)
+    - [Escaping](#escaping)
+  - [Roadmap](#roadmap)
+  - [License](#license)
+
+<!-- markdown-toc end -->
+
 ## Caveats
 
 - Section names and key names are all case-sensitive
