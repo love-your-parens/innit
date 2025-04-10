@@ -268,8 +268,7 @@ lines\"")
   (when s (-> s
               prune-comments
               str/trim
-              strip-quotes
-              unescape)))
+              strip-quotes)))
 
 ^:rct/test
 (comment
@@ -284,7 +283,7 @@ lines\"")
   (->value " \"  unwrap me, trim outside only  \" ")
   ;; => "  unwrap me, trim outside only  "
   (->value "\"this is \\# content \" # this is not")
-  ;; => "this is # content "
+  ;; => "this is \\# content "
   (->value nil)
   ;; => nil
 )
@@ -297,8 +296,7 @@ lines\"")
   (when s (-> s
               prune-comments
               str/trim
-              strip-quotes
-              unescape)))
+              strip-quotes)))
 
 ^:rct/test
 (comment
@@ -403,7 +401,7 @@ multiple lines  \"")
   ;;      "test.NAME" "... but should get overwritten"},
   ;;     "section-3"
   ;;     {"multi\nline_keys" "with\n   multiline values!",
-  ;;      "comment signs" "can # be escaped\nand don't disrupt multilines",
+  ;;      "comment signs" "can \\# be escaped\nand don't disrupt multilines",
   ;;      "try" "quoting over\nmultiple lines  "}}
   )
 
